@@ -1,6 +1,185 @@
-import {useEffect,useMemo,useState} from 'react';
-import {AlertTriangle,Check,ChevronDown,Download,FileCode2,Info,Layers3,Plus,Search,ShieldCheck,Sparkles,Upload, X} from 'lucide-react';
-type Dep={id:number;name:string;version:string;license:string;source:string;status:'ok'|'warn'|'risk';note:string};
-const initial:Dep[]=[{id:1,name:'react',version:'18.3.1',license:'MIT',source:'npm',status:'ok',note:'宽松许可，可商用'}, {id:2,name:'lodash',version:'4.17.21',license:'MIT',source:'npm',status:'ok',note:'宽松许可，可商用'}, {id:3,name:'chart.js',version:'4.4.4',license:'MIT',source:'npm',status:'ok',note:'宽松许可，可商用'}, {id:4,name:'highlight.js',version:'11.10.0',license:'BSD-3-Clause',source:'npm',status:'warn',note:'再发布需保留版权声明'}, {id:5,name:'legacy-parser',version:'2.1.0',license:'GPL-3.0',source:'手动',status:'risk',note:'可能与闭源分发冲突'}];
-const colors:Record<string,string>={MIT:'#35b995','BSD-3-Clause':'#6d9ee8','GPL-3.0':'#ec8c75','Apache-2.0':'#b18ee4'};
-export default function App(){const [deps,setDeps]=useState<Dep[]>(()=>{try{return JSON.parse(localStorage.getItem('license-lens')||'')||initial}catch{return initial}});const [query,setQuery]=useState('');const [filter,setFilter]=useState('全部');const [selected,setSelected]=useState(1);const [showAdd,setShowAdd]=useState(false);const [name,setName]=useState('');const [license,setLicense]=useState('MIT');const current=deps.find(d=>d.id===selected);useEffect(()=>localStorage.setItem('license-lens',JSON.stringify(deps)),[deps]);const filtered=useMemo(()=>deps.filter(d=>(filter==='全部'||d.status===filter)&&`${d.name}${d.license}`.toLowerCase().includes(query.toLowerCase())),[deps,filter,query]);const add=()=>{if(!name.trim())return;const id=Date.now();setDeps(ds=>[...ds,{id,name:name.trim(),version:'1.0.0',license,source:'手动',status:license.startsWith('GPL')?'risk':license==='MIT'?'ok':'warn',note:license==='MIT'?'宽松许可，可商用':'请核对分发义务'}]);setSelected(id);setName('');setShowAdd(false)};const exportMd=()=>{const text=`# License Lens\n\n| 依赖 | 版本 | 许可证 | 状态 |\n|---|---|---|---|\n${deps.map(d=>`| ${d.name} | ${d.version} | ${d.license} | ${d.status} |`).join('\n')}`;const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type:'text/markdown'}));a.download='license-report.md';a.click();URL.revokeObjectURL(a.href)};return <div className="shell"><aside><div className="brand"><div className="brand-icon"><ShieldCheck size={18}/></div><div><b>License Lens</b><small>dependency clarity</small></div></div><div className="nav-title">WORKSPACE</div><button className="nav active"><Layers3 size={16}/>依赖总览</button><button className="nav"><FileCode2 size={16}/>许可证清单 <span>{deps.length}</span></button><button className="nav"><AlertTriangle size={16}/>待处理风险 <span className="red">{deps.filter(d=>d.status==='risk').length}</span></button><div className="aside-bottom"><div className="mini-card"><Sparkles size={16}/><div><b>扫描已更新</b><small>刚刚完成 5 个依赖的分析</small></div></div><div className="user"><div className="avatar">ZL</div><span>Zen Li</span><ChevronDown size={14}/></div></div></aside><main><header><div><div className="crumb">WORKSPACE / <b>PROJECT SCAN</b></div><h1>许可证兼容性分析</h1><p>检查依赖许可，放心发布你的项目。</p></div><div className="head-actions"><button className="outline" onClick={exportMd}><Download size={15}/>导出报告</button><button className="primary" onClick={()=>setShowAdd(true)}><Plus size={16}/>添加依赖</button></div></header><section className="hero"><div><span className="tag">PROJECT · AURORA-WEB</span><h2>发布前，再确认一次。</h2><p>我们扫描了 <b>{deps.length} 个依赖</b>，发现 <b className="warning">{deps.filter(d=>d.status!=='ok').length} 个项目</b>需要你的关注。</p></div><div className="scan-score"><div className="score-ring"><strong>{Math.round(deps.filter(d=>d.status==='ok').length/deps.length*100)}<small>%</small></strong></div><div><span>兼容评分</span><b>良好</b><small>上次扫描 2 分钟前</small></div></div></section><section className="summary"><div><span>全部依赖</span><b>{deps.length}</b><small>+2 本次新增</small></div><div><span>安全许可</span><b className="teal">{deps.filter(d=>d.status==='ok').length}</b><small>可直接分发</small></div><div><span>需要复核</span><b className="orange">{deps.filter(d=>d.status==='warn').length}</b><small>保留声明即可</small></div><div><span>高风险</span><b className="red">{deps.filter(d=>d.status==='risk').length}</b><small>建议替换或隔离</small></div></section><section className="workspace"><div className="table-pane"><div className="pane-head"><div><h2>依赖清单</h2><p>逐项查看许可证义务</p></div><div className="tools"><div className="search"><Search size={15}/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="搜索依赖"/></div><select value={filter} onChange={e=>setFilter(e.target.value)}><option value="全部">全部状态</option><option value="ok">安全</option><option value="warn">复核</option><option value="risk">高风险</option></select></div></div><div className="table"><div className="tr th"><span>依赖名称</span><span>版本</span><span>许可证</span><span>状态</span></div>{filtered.map(d=><button className={d.id===selected?'tr selected':'tr'} key={d.id} onClick={()=>setSelected(d.id)}><span className="dep-name"><span className="pkg-dot"/> {d.name}</span><span className="muted">{d.version}</span><span><i className="license" style={{color:colors[d.license]||'#888',background:(colors[d.license]||'#888')+'18'}}>{d.license}</i></span><span className={'status '+d.status}>{d.status==='ok'?<Check size={13}/>:<AlertTriangle size={13}/>} {d.status==='ok'?'安全':d.status==='warn'?'复核':'高风险'}</span></button>)}</div></div>{current&&<div className="detail"><div className="detail-head"><div className="detail-icon" style={{background:(colors[current.license]||'#888')+'1c',color:colors[current.license]}}><FileCode2 size={20}/></div><div><span>SELECTED DEPENDENCY</span><h2>{current.name}</h2></div><button className="close" onClick={()=>setSelected(0)}><X size={16}/></button></div><div className="detail-grid"><div><label>版本</label><b>{current.version}</b></div><div><label>来源</label><b>{current.source}</b></div><div><label>许可证</label><b>{current.license}</b></div></div><div className={'finding '+current.status}><div className="finding-icon">{current.status==='ok'?<Check size={16}/>:<AlertTriangle size={16}/>}</div><div><b>{current.status==='ok'?'可以放心使用':current.status==='warn'?'需要保留声明':'存在分发限制'}</b><p>{current.note}。扫描结果基于 package 元数据，请在发布前查看完整许可证文本。</p></div></div><div className="full-license"><div><Info size={15}/><span>许可证摘要</span></div><p>{current.license} 允许在满足其条款的前提下使用和分发代码。详细义务请参考项目仓库中的 LICENSE 文件。</p><button>查看原文 <ChevronDown size={14}/></button></div></div>}</section></main>{showAdd&&<div className="backdrop" onClick={()=>setShowAdd(false)}><div className="modal" onClick={e=>e.stopPropagation()}><div className="modal-head"><h2>添加依赖</h2><button onClick={()=>setShowAdd(false)}>×</button></div><label>依赖名称<input autoFocus value={name} onChange={e=>setName(e.target.value)} placeholder="例如 date-fns"/></label><label>许可证<select value={license} onChange={e=>setLicense(e.target.value)}><option>MIT</option><option>BSD-3-Clause</option><option>Apache-2.0</option><option>GPL-3.0</option></select></label><button className="primary full" onClick={add}>加入扫描</button></div></div>}</div>}
+import {useMemo, useState} from 'react';
+import {
+  AlertTriangle, ArrowLeftRight, Download, FileClock, Gavel, Layers3, PackageOpen,
+  RotateCcw, Search, ShieldCheck, ShieldQuestion, Sparkles, UploadCloud,
+} from 'lucide-react';
+import {useLicenseStore} from './license/store';
+import {currentPackages, currentVerdict, pkgCoord} from './license/engine';
+import {buildReport, download} from './license/report';
+import {ManifestList, type StatusFilter} from './license/components/ManifestList';
+import {DetailPanel} from './license/components/DetailPanel';
+import {BatchPanel} from './license/components/BatchPanel';
+import {ActivityLog, ExceptionsPanel, HistoryPanel, PolicyPanel} from './license/components/Panels';
+
+type Tab = 'manifest' | 'batches' | 'policy' | 'exceptions' | 'history';
+
+const TABS: {id: Tab; label: string; icon: typeof Layers3}[] = [
+  {id: 'manifest', label: '当前清单', icon: Layers3},
+  {id: 'batches', label: '扫描包接入', icon: UploadCloud},
+  {id: 'policy', label: '策略版本', icon: Gavel},
+  {id: 'exceptions', label: '例外审批', icon: ShieldCheck},
+  {id: 'history', label: '历史结论', icon: FileClock},
+];
+
+export default function App() {
+  const store = useLicenseStore();
+  const {db, logs} = store;
+  const [tab, setTab] = useState<Tab>('manifest');
+  const [query, setQuery] = useState('');
+  const [filter, setFilter] = useState<StatusFilter>('all');
+  const [selectedFp, setSelectedFp] = useState<string | null>(null);
+  const [historyView, setHistoryView] = useState(false);
+
+  const rows = useMemo(() => currentPackages(db).map(p => currentVerdict(db, p)), [db]);
+  const counts = useMemo(() => {
+    const c = {ok: 0, warn: 0, risk: 0, pending: 0};
+    for (const r of rows) c[r.status] += 1;
+    return c;
+  }, [rows]);
+
+  const failedBatches = db.batches.filter(b => b.state === 'pending-retry').length;
+  const selectedPkg = selectedFp ? db.packages[selectedFp] ?? null : null;
+
+  const openPkg = (fp: string, history = false) => {
+    setSelectedFp(fp);
+    setHistoryView(history);
+  };
+
+  const exportReport = () => {
+    download(`license-report-${db.currentPolicyVersion}.md`, buildReport(db));
+  };
+
+  return (
+    <div className="shell">
+      <aside>
+        <div className="brand">
+          <div className="brand-icon"><ShieldCheck size={18}/></div>
+          <div><b>License Lens</b><small>fingerprint · policy · verdict</small></div>
+        </div>
+        <div className="nav-title">合规工作台</div>
+        {TABS.map(t => (
+          <button key={t.id} className={`nav ${tab === t.id ? 'active' : ''}`} onClick={() => setTab(t.id)}>
+            <t.icon size={16}/> {t.label}
+            {t.id === 'batches' && failedBatches > 0 && <span className="red">{failedBatches} 待重试</span>}
+            {t.id === 'manifest' && counts.pending > 0 && <span className="amber">{counts.pending} 待复核</span>}
+          </button>
+        ))}
+        <div className="aside-bottom">
+          <div className="mini-card">
+            <Sparkles size={16}/>
+            <div>
+              <b>当前策略 {db.currentPolicyVersion}</b>
+              <small>{db.policies.find(p => p.id === db.currentPolicyVersion)?.note}</small>
+            </div>
+          </div>
+          <button className="reset-btn" onClick={store.resetDemo}><RotateCcw size={13}/> 重置演示数据</button>
+        </div>
+      </aside>
+
+      <main>
+        <header>
+          <div>
+            <div className="crumb">WORKSPACE / <b>DEPENDENCY GOVERNANCE</b></div>
+            <h1>依赖许可证裁决</h1>
+            <p>内容指纹去重 · 策略版本绑定 · 例外条件校验 · 批次原子写入 · 旧数据迁移</p>
+          </div>
+          <div className="head-actions">
+            <button className="outline" onClick={exportReport}><Download size={15}/> 导出当前有效裁决报告</button>
+            <button className="outline" onClick={() => setTab('batches')}><UploadCloud size={15}/> 接入扫描包</button>
+          </div>
+        </header>
+
+        {db.migratedAt && (
+          <div className="migration-banner">
+            <ArrowLeftRight size={15}/>
+            <span>
+              旧版站内清单已于首次打开时迁移到 v2：{db.legacyCount} 个包补全内容指纹并绑定策略版本
+              <b> {db.currentPolicyVersion}</b>，历史结论保留可查；清单与统计只显示当前有效裁决。
+            </span>
+          </div>
+        )}
+
+        {failedBatches > 0 && (
+          <div className="migration-banner warn">
+            <AlertTriangle size={15}/>
+            <span>有 {failedBatches} 个扫描包写入失败，已保留待重试；已入库记录不受影响。</span>
+            <button className="mini-primary" onClick={store.retryAllFailed}>立即重试</button>
+          </div>
+        )}
+
+        <section className="summary">
+          <div><span>当前包总数（按指纹）</span><b>{rows.length}</b><small>内容相同只计一次</small></div>
+          <div><span>放行</span><b className="teal">{counts.ok}</b><small>含沿用的有效例外</small></div>
+          <div><span>需复核 / 拒绝</span><b className="orange">{counts.warn + counts.risk}</b><small>复核 {counts.warn} · 拒绝 {counts.risk}</small></div>
+          <div><span>待复核</span><b className="red">{counts.pending}</b><small>内容变化 / 策略升级 / 未知许可证</small></div>
+        </section>
+
+        {tab === 'manifest' && (
+          <section className="workspace">
+            <div className="table-pane">
+              <div className="pane-head">
+                <div><h2>当前清单</h2><p>同一内容指纹只出现一次；失效旧裁决不显示</p></div>
+                <div className="tools">
+                  <div className="search"><Search size={15}/><input value={query} onChange={e => setQuery(e.target.value)} placeholder="搜索包 / 指纹"/></div>
+                  <select value={filter} onChange={e => setFilter(e.target.value as StatusFilter)}>
+                    <option value="all">全部状态</option>
+                    <option value="ok">放行</option>
+                    <option value="warn">需复核</option>
+                    <option value="risk">拒绝</option>
+                    <option value="pending">待复核</option>
+                  </select>
+                  <button className="outline mini" disabled={counts.pending === 0} onClick={store.readjudicatePending} title="未知许可证仍会保留待人工">
+                    <Gavel size={13}/> 全部按当前策略重裁
+                  </button>
+                </div>
+              </div>
+              <ManifestList db={db} query={query} filter={filter} selectedFp={selectedFp} onSelect={fp => openPkg(fp, false)}/>
+            </div>
+            <DetailPanel
+              db={db}
+              pkg={selectedPkg}
+              isHistory={historyView}
+              onClose={() => setSelectedFp(null)}
+              onReadjudicate={store.readjudicateOne}
+              onReview={store.review}
+            />
+          </section>
+        )}
+
+        {tab === 'batches' && (
+          <section className="workspace wide">
+            <BatchPanel db={db} onReceive={store.receiveBatch} onCommit={store.commit} onRetryAll={store.retryAllFailed}/>
+            <ActivityLog logs={logs}/>
+          </section>
+        )}
+
+        {tab === 'policy' && <PolicyPanel db={db} onBump={store.bumpPolicy}/>}
+        {tab === 'exceptions' && <ExceptionsPanel db={db} onAdd={store.addException}/>}
+        {tab === 'history' && (
+          <section className="workspace wide">
+            <HistoryPanel db={db} query={query} onSelect={fp => openPkg(fp, true)}/>
+            {selectedPkg && historyView && (
+              <DetailPanel db={db} pkg={selectedPkg} isHistory onClose={() => setSelectedFp(null)} onReadjudicate={store.readjudicateOne} onReview={store.review}/>
+            )}
+            {!selectedPkg && (
+              <div className="detail empty-detail">
+                <PackageOpen size={28}/>
+                <p>在左侧选择任意历史包（包括被新内容替换的），查看其失效裁决与历史结论。</p>
+              </div>
+            )}
+          </section>
+        )}
+
+        <footer className="foot-note">
+          <ShieldQuestion size={13}/>
+          清单、统计与报告仅基于当前有效裁决；失效记录只存在于历史查询中。
+          {rows.some(r => r.pkg.sources.length > 1) && (
+            <span className="merge-note">
+              已合并来源：{rows.filter(r => r.pkg.sources.length > 1).map(r => pkgCoord(r.pkg)).join('、')}
+            </span>
+          )}
+        </footer>
+      </main>
+    </div>
+  );
+}
